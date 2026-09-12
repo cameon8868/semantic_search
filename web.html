@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Семантический поиск</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { text-align: center; color: #333; margin-bottom: 10px; font-size: 2.5em; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 30px; }
+        .search-box input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .search-box button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .search-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .search-box button:active { transform: translateY(0); }
+        .loading { display: none; text-align: center; color: #667eea; font-size: 18px; padding: 20px; }
+        .loading.active { display: block; }
+        .results { display: none; margin-top: 20px; }
+        .results.active { display: block; }
+        .result-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .result-item:hover { transform: translateX(5px); }
+        .result-score {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .result-text { color: #333; line-height: 1.6; }
+        .result-full {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+            color: #555;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        .result-full.active { display: block; }
+        .show-more {
+            color: #667eea;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        .show-more:hover { text-decoration: underline; }
+        .no-results {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+            font-size: 18px;
+        }
+        .stats {
+            text-align: center;
+            color: #999;
+            font-size: 14px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        @media (max-width: 600px) {
+            .container { padding: 20px; }
+            .search-box { flex-direction: column; }
+            h1 { font-size: 2em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Семантический поиск</h1>
+        <p class="subtitle">Поиск по смыслу, а не по словам</p>
+        
+        <div class="search-box">
+            <input type="text" id="queryInput" placeholder="Введите запрос..." autofocus>
+            <button onclick="search()">Найти</button>
+        </div>
+        
+        <div class="loading" id="loading">⏳ Идёт поиск...</div>
+        <div class="results" id="results"></div>
+        
+        <div class="stats">
+            📚 Всего документов: 35 | 📐 Размерность: 7790
+        </div>
+    </div>
+    <script>
+        document.getElementById('queryInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') search();
+        });
+        async function search() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
+            const resultsDiv = document.getElementById('results');
+            const loadingDiv = document.getElementById('loading');
+            
+            resultsDiv.classList.remove('active');
+            loadingDiv.classList.add('active');
+            resultsDiv.innerHTML = '';
+            try {
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                loadingDiv.classList.remove('active');
+                if (data.error) {
+                    resultsDiv.innerHTML = `<div class="no-results">❌ ${data.error}</div>`;
+                    resultsDiv.classList.add('active');
+                    return;
+                }
+                if (!data.results || data.results.length === 0) {
+                    resultsDiv.innerHTML = `<div class="no-results">😕 Ничего не найдено по запросу «${query}»</div>`;
+                    resultsDiv.classList.add('active');
+                    return;
+                }
+                let html = '<h3>📋 Результаты:</h3>';
+                data.results.forEach((r, i) => {
+                    const id = 'full_' + i;
+                    html += `
+                        <div class="result-item">
+                            <div class="result-score">${r.score}%</div>
+                            <div class="result-text">${r.text}</div>
+                            <div class="result-full" id="${id}">${r.full_text}</div>
+                            <span class="show-more" onclick="toggleFull('${id}')">📖 Показать полностью</span>
+                        </div>
+                    `;
+                });
+                resultsDiv.innerHTML = html;
+                resultsDiv.classList.add('active');
+            } catch (error) {
+                loadingDiv.classList.remove('active');
+                resultsDiv.innerHTML = `<div class="no-results">❌ Ошибка: ${error.message}</div>`;
+                resultsDiv.classList.add('active');
+            }
+        }
+        function toggleFull(id) {
+            const el = document.getElementById(id);
+            const isActive = el.classList.contains('active');
+            el.classList.toggle('active');
+            el.previousElementSibling.previousElementSibling.textContent = 
+                isActive ? '📖 Показать полностью' : '📕 Скрыть';
+        }
+    </script>
+</body>
+</html>
