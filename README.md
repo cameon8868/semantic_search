@@ -51,3 +51,9 @@ C++-модуль, который ищет папку `wikipedia_docs/`, созд
 ### `web.html`
 HTML-вёрстка веб-интерфейса для `search_api.py`.  
 Содержит поле ввода запроса, селектор режима поиска (TF-IDF / SBERT / Гибрид) и вывод результатов.
+
+## Автор
+
+**cameon8868**
+
+GitHub: [https://github.com/cameon8868/semantic_search](https://github.com/cameon8868/semantic_search)
