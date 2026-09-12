@@ -38,6 +38,19 @@
             outline: none;
             border-color: #667eea;
         }
+        .search-box select {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .search-box select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
         .search-box button {
             padding: 15px 30px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -125,6 +138,11 @@
         
         <div class="search-box">
             <input type="text" id="queryInput" placeholder="Введите запрос..." autofocus>
+            <select id="modeSelect">
+                <option value="tfidf">📖 TF-IDF</option>
+                <option value="sbert" selected>🧠 SBERT</option>
+                <option value="hybrid">⚡ Гибрид</option>
+            </select>
             <button onclick="search()">Найти</button>
         </div>
         
@@ -132,7 +150,7 @@
         <div class="results" id="results"></div>
         
         <div class="stats">
-            📚 Всего документов: 35 | 📐 Размерность: 7790
+            📚 Документов: 35 | 📐 Словарь TF-IDF: 7790 | 🧠 SBERT: 384
         </div>
     </div>
     <script>
@@ -141,6 +159,7 @@
         });
         async function search() {
             const query = document.getElementById('queryInput').value.trim();
+            const mode = document.getElementById('modeSelect').value;
             if (!query) return;
             const resultsDiv = document.getElementById('results');
             const loadingDiv = document.getElementById('loading');
@@ -149,7 +168,7 @@
             loadingDiv.classList.add('active');
             resultsDiv.innerHTML = '';
             try {
-                const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}&mode=${mode}`);
                 const data = await response.json();
                 loadingDiv.classList.remove('active');
                 if (data.error) {
@@ -162,7 +181,8 @@
                     resultsDiv.classList.add('active');
                     return;
                 }
-                let html = '<h3>📋 Результаты:</h3>';
+                const modeLabel = {tfidf: '📖 TF-IDF', sbert: '🧠 SBERT', hybrid: '⚡ Гибрид'}[data.mode] || '';
+                let html = `<h3>📋 Результаты (${modeLabel}):</h3>`;
                 data.results.forEach((r, i) => {
                     const id = 'full_' + i;
                     html += `
