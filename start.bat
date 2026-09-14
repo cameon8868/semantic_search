@@ -8,21 +8,55 @@ echo    SEMANTIC SEARCH - FULL AUTO START
 echo ============================================================
 echo.
 
-REM --- 0. Ensure Python is available --------------------------
+REM --- 0. Ensure Python is available (fallback: python.org) ----
 where py >nul 2>&1
 if errorlevel 1 (
     where python >nul 2>&1
     if errorlevel 1 (
-        echo [0/7] Python not found. Installing via winget...
-        winget install --id Python.Python.3.12 -e --scope machine --silent --accept-source-agreements --accept-package-agreements --override "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_pip=1 Include_launcher=1 InstallLauncherAllUsers=1"
+        echo [0/7] Python not found. Downloading from python.org...
+        echo.
+
+        REM --- Определяем версию Python ---
+        set "PY_VER=3.12.9"
+
+        REM --- Скачиваем установщик через PowerShell ---
+        powershell -NoProfile -Command ^
+            "try { Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PY_VER%/python-%PY_VER%-amd64.exe' -OutFile 'python-installer.exe' -UseBasicParsing } catch { exit 1 }"
+
         if errorlevel 1 (
-            echo       [ERROR] winget install failed.
-            echo       Install Python manually from https://www.python.org/downloads/
+            echo       [ERROR] Download failed. Check your internet connection.
+            echo       Or install Python manually from https://www.python.org/downloads/
             pause
             exit /b 1
         )
+        echo       Download OK.
+        echo.
+
+        REM --- Тихая установка ---
+        echo       Installing Python %PY_VER% silently...
+        echo       This may take 1-2 minutes.
+        start /wait "" "python-installer.exe" ^
+            /quiet ^
+            InstallAllUsers=0 ^
+            PrependPath=1 ^
+            Include_test=0 ^
+            Include_pip=1 ^
+            Include_launcher=1
+
+        if errorlevel 1 (
+            echo       [ERROR] Silent install failed.
+            echo       Try installing manually from https://www.python.org/downloads/
+            pause
+            exit /b 1
+        )
+
+        REM --- Удаляем установщик ---
+        del "python-installer.exe" >nul 2>&1
+
         echo       OK. Python installed.
+        echo.
         echo       Please close this window and run the script again.
+        echo       The new PATH will be picked up on the next run.
         pause
         exit /b 0
     )
