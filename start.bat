@@ -9,9 +9,9 @@ echo ============================================================
 echo.
 
 REM --- 0. Ensure Python is available (fallback: python.org) ----
-where py >nul 2>&1
+where python >nul 2>&1
 if errorlevel 1 (
-    where python >nul 2>&1
+    where py >nul 2>&1
     if errorlevel 1 (
         echo [0/7] Python not found. Downloading from python.org...
         echo.
