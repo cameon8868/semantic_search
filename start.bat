@@ -8,6 +8,27 @@ echo    SEMANTIC SEARCH - FULL AUTO START
 echo ============================================================
 echo.
 
+REM --- 0. Ensure Python is available --------------------------
+where py >nul 2>&1
+if errorlevel 1 (
+    where python >nul 2>&1
+    if errorlevel 1 (
+        echo [0/7] Python not found. Installing via winget...
+        winget install --id Python.Python.3.12 -e --scope machine --silent --accept-source-agreements --accept-package-agreements --override "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0 Include_pip=1 Include_launcher=1 InstallLauncherAllUsers=1"
+        if errorlevel 1 (
+            echo       [ERROR] winget install failed.
+            echo       Install Python manually from https://www.python.org/downloads/
+            pause
+            exit /b 1
+        )
+        echo       OK. Python installed.
+        echo       Please close this window and run the script again.
+        pause
+        exit /b 0
+    )
+)
+echo.
+
 REM --- 1. Create venv if missing -----------------------------
 if not exist "venv\Scripts\activate.bat" (
     echo [1/7] Creating venv...
