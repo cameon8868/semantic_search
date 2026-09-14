@@ -1,5 +1,6 @@
 @echo off
 cd /d "%~dp0"
+setlocal enabledelayedexpansion
 
 title Semantic Search - Full Auto Start
 
@@ -10,71 +11,107 @@ echo.
 
 REM --- 0. Ensure Python is available --------------------------
 set "PYTHON_CMD="
+set "PYTHON_DIR=%~dp0python-embed"
+set "PY_VERSION=3.12.9"
 
-REM Пробуем py
+REM 0.1. Проверяем системный py
 where py >nul 2>&1
 if not errorlevel 1 (
     py --version >nul 2>&1
-    if not errorlevel 1 set "PYTHON_CMD=py"
-)
-
-REM Пробуем python, если py не сработал
-if not defined PYTHON_CMD (
-    where python >nul 2>&1
     if not errorlevel 1 (
-        python --version >nul 2>&1
-        if not errorlevel 1 set "PYTHON_CMD=python"
+        set "PYTHON_CMD=py"
+        goto :python_ready
     )
 )
 
-REM Если ничего рабочего нет — ставим Python
-if not defined PYTHON_CMD (
-    echo [0/7] No working Python found. Downloading from python.org...
-    echo.
+REM 0.2. Проверяем системный python
+where python >nul 2>&1
+if not errorlevel 1 (
+    python --version >nul 2>&1
+    if not errorlevel 1 (
+        set "PYTHON_CMD=python"
+        goto :python_ready
+    )
+)
 
-    set "PY_VER=3.12.9"
+REM 0.3. Проверяем уже распакованную embeddable-версию
+if exist "%PYTHON_DIR%\python.exe" (
+    "%PYTHON_DIR%\python.exe" --version >nul 2>&1
+    if not errorlevel 1 (
+        set "PYTHON_CMD=%PYTHON_DIR%\python.exe"
+        goto :python_ready
+    )
+)
+
+REM 0.4. Ничего нет — скачиваем embeddable Python
+echo [0/7] No Python found. Downloading embeddable Python %PY_VERSION%...
+echo.
+
+set "EMBED_URL=https://www.python.org/ftp/python/%PY_VERSION%/python-%PY_VERSION%-embed-amd64.zip"
+
+REM Пробуем curl (есть в Windows 10 1803+)
+where curl >nul 2>&1
+if not errorlevel 1 (
+    curl -L -o "python-embed.zip" "%EMBED_URL%"
+)
+
+REM Если curl не справился — PowerShell
+if not exist "python-embed.zip" (
     powershell -NoProfile -Command ^
-        "try { Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PY_VER%/python-%PY_VER%-amd64.exe' -OutFile 'python-installer.exe' -UseBasicParsing } catch { exit 1 }"
-
-    if errorlevel 1 (
-        echo       [ERROR] Download failed.
-        echo       Install Python manually from https://www.python.org/downloads/
-        pause
-        exit /b 1
-    )
-    echo       Download OK.
-    echo.
-
-    echo       Installing Python %PY_VER% silently...
-    start /wait "" "python-installer.exe" ^
-        /quiet ^
-        InstallAllUsers=0 ^
-        PrependPath=1 ^
-        Include_test=0 ^
-        Include_pip=1 ^
-        Include_launcher=1
-
-    if errorlevel 1 (
-        echo       [ERROR] Silent install failed.
-        pause
-        exit /b 1
-    )
-
-    del "python-installer.exe" >nul 2>&1
-
-    echo       OK. Python installed.
-    echo       Please close this window and run the script again.
-    pause
-    exit /b 0
+        "try { Invoke-WebRequest -Uri '%EMBED_URL%' -OutFile 'python-embed.zip' -UseBasicParsing } catch { exit 1 }"
 )
 
+if not exist "python-embed.zip" (
+    echo       [ERROR] Download failed.
+    echo       Install Python manually from https://www.python.org/downloads/
+    pause
+    exit /b 1
+)
+
+echo       Download OK. Extracting...
+powershell -NoProfile -Command ^
+    "Expand-Archive -Path 'python-embed.zip' -DestinationPath '%PYTHON_DIR%' -Force"
+
+del "python-embed.zip" >nul 2>&1
+
+if not exist "%PYTHON_DIR%\python.exe" (
+    echo       [ERROR] Extraction failed.
+    pause
+    exit /b 1
+)
+
+REM 0.5. Включаем pip в embeddable-версии
+REM В _pth-файле нужно раскомментировать "import site"
+for %%f in ("%PYTHON_DIR%\python*._pth") do (
+    powershell -NoProfile -Command ^
+        "(Get-Content '%%f') -replace '#import site','import site' | Set-Content '%%f'"
+)
+
+REM 0.6. Скачиваем get-pip.py и ставим pip
+echo       Setting up pip...
+curl -L -o "%PYTHON_DIR%\get-pip.py" "https://bootstrap.pypa.io/get-pip.py" 2>nul
+if not exist "%PYTHON_DIR%\get-pip.py" (
+    powershell -NoProfile -Command ^
+        "try { Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile '%PYTHON_DIR%\get-pip.py' -UseBasicParsing } catch { exit 1 }"
+)
+
+if exist "%PYTHON_DIR%\get-pip.py" (
+    "%PYTHON_DIR%\python.exe" "%PYTHON_DIR%\get-pip.py" --no-warn-script-location
+    del "%PYTHON_DIR%\get-pip.py" >nul 2>&1
+)
+
+set "PYTHON_CMD=%PYTHON_DIR%\python.exe"
+echo       OK. Python ready.
+echo.
+
+:python_ready
 echo Using interpreter: %PYTHON_CMD%
 echo.
 
 REM --- 1. Create venv if missing -----------------------------
 if not exist "venv\Scripts\activate.bat" (
     echo [1/7] Creating venv...
-    %PYTHON_CMD% -m venv venv
+    "%PYTHON_CMD%" -m venv venv
     if errorlevel 1 (
         echo       [ERROR] Failed to create venv.
         pause
