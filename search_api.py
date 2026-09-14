@@ -5,13 +5,13 @@ import numpy as np
 import os
 import uvicorn
 import re
-from sentence_transformers import SentenceTransformer, util
-
-app = FastAPI()
 
 print("=" * 50)
 print("   📚 ЗАГРУЗКА ДАННЫХ...")
 print("=" * 50)
+
+from sentence_transformers import SentenceTransformer, util
+app = FastAPI()
 
 
 
