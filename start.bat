@@ -8,73 +8,75 @@ echo    SEMANTIC SEARCH - FULL AUTO START
 echo ============================================================
 echo.
 
-REM --- 0. Ensure Python is available (fallback: python.org) ----
-where python >nul 2>&1
-if errorlevel 1 (
-    where py >nul 2>&1
-    if errorlevel 1 (
-        echo [0/7] Python not found. Downloading from python.org...
-        echo.
+REM --- 0. Ensure Python is available --------------------------
+set "PYTHON_CMD="
 
-        REM --- Определяем версию Python ---
-        set "PY_VER=3.12.9"
+REM Пробуем py
+where py >nul 2>&1
+if not errorlevel 1 (
+    py --version >nul 2>&1
+    if not errorlevel 1 set "PYTHON_CMD=py"
+)
 
-        REM --- Скачиваем установщик через PowerShell ---
-        powershell -NoProfile -Command ^
-            "try { Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PY_VER%/python-%PY_VER%-amd64.exe' -OutFile 'python-installer.exe' -UseBasicParsing } catch { exit 1 }"
-
-        if errorlevel 1 (
-            echo       [ERROR] Download failed. Check your internet connection.
-            echo       Or install Python manually from https://www.python.org/downloads/
-            pause
-            exit /b 1
-        )
-        echo       Download OK.
-        echo.
-
-        REM --- Тихая установка ---
-        echo       Installing Python %PY_VER% silently...
-        echo       This may take 1-2 minutes.
-        start /wait "" "python-installer.exe" ^
-            /quiet ^
-            InstallAllUsers=0 ^
-            PrependPath=1 ^
-            Include_test=0 ^
-            Include_pip=1 ^
-            Include_launcher=1
-
-        if errorlevel 1 (
-            echo       [ERROR] Silent install failed.
-            echo       Try installing manually from https://www.python.org/downloads/
-            pause
-            exit /b 1
-        )
-
-        REM --- Удаляем установщик ---
-        del "python-installer.exe" >nul 2>&1
-
-        echo       OK. Python installed.
-        echo.
-        echo       Please close this window and run the script again.
-        echo       The new PATH will be picked up on the next run.
-        pause
-        exit /b 0
+REM Пробуем python, если py не сработал
+if not defined PYTHON_CMD (
+    where python >nul 2>&1
+    if not errorlevel 1 (
+        python --version >nul 2>&1
+        if not errorlevel 1 set "PYTHON_CMD=python"
     )
 )
+
+REM Если ничего рабочего нет — ставим Python
+if not defined PYTHON_CMD (
+    echo [0/7] No working Python found. Downloading from python.org...
+    echo.
+
+    set "PY_VER=3.12.9"
+    powershell -NoProfile -Command ^
+        "try { Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/%PY_VER%/python-%PY_VER%-amd64.exe' -OutFile 'python-installer.exe' -UseBasicParsing } catch { exit 1 }"
+
+    if errorlevel 1 (
+        echo       [ERROR] Download failed.
+        echo       Install Python manually from https://www.python.org/downloads/
+        pause
+        exit /b 1
+    )
+    echo       Download OK.
+    echo.
+
+    echo       Installing Python %PY_VER% silently...
+    start /wait "" "python-installer.exe" ^
+        /quiet ^
+        InstallAllUsers=0 ^
+        PrependPath=1 ^
+        Include_test=0 ^
+        Include_pip=1 ^
+        Include_launcher=1
+
+    if errorlevel 1 (
+        echo       [ERROR] Silent install failed.
+        pause
+        exit /b 1
+    )
+
+    del "python-installer.exe" >nul 2>&1
+
+    echo       OK. Python installed.
+    echo       Please close this window and run the script again.
+    pause
+    exit /b 0
+)
+
+echo Using interpreter: %PYTHON_CMD%
 echo.
 
 REM --- 1. Create venv if missing -----------------------------
 if not exist "venv\Scripts\activate.bat" (
     echo [1/7] Creating venv...
-    where py >nul 2>&1
-    if %errorlevel%==0 (
-        py -m venv venv
-    ) else (
-        python -m venv venv
-    )
+    %PYTHON_CMD% -m venv venv
     if errorlevel 1 (
-        echo       [ERROR] Failed to create venv. Is Python installed?
-        echo       Install from https://www.python.org/downloads/
+        echo       [ERROR] Failed to create venv.
         pause
         exit /b 1
     )
