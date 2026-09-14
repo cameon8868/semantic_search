@@ -9,11 +9,17 @@ echo ============================================================
 echo.
 
 REM --- 1. Create venv if missing -----------------------------
-if not exist "venv\bin\activate.bat" (
+if not exist "venv\Scripts\activate.bat" (
     echo [1/7] Creating venv...
-    python -m venv venv
+    where py >nul 2>&1
+    if %errorlevel%==0 (
+        py -m venv venv
+    ) else (
+        python -m venv venv
+    )
     if errorlevel 1 (
         echo       [ERROR] Failed to create venv. Is Python installed?
+        echo       Install from https://www.python.org/downloads/
         pause
         exit /b 1
     )
@@ -25,7 +31,7 @@ echo.
 
 REM --- 2. Activate venv --------------------------------------
 echo [2/7] Activating venv...
-call venv\bin\activate.bat
+call venv\Scripts\activate.bat
 if errorlevel 1 (
     echo       [ERROR] Failed to activate venv!
     pause
@@ -62,7 +68,7 @@ echo.
 REM --- 4. Download corpus if missing -------------------------
 if not exist "wikipedia_docs" (
     echo [4/7] wikipedia_docs not found. Running parsing.py...
-    parsing.py
+    python parsing.py
     if errorlevel 1 (
         echo       [ERROR] parsing.py failed!
         pause
@@ -73,7 +79,7 @@ if not exist "wikipedia_docs" (
     dir /b /a-d "wikipedia_docs\*.txt" >nul 2>&1
     if errorlevel 1 (
         echo [4/7] wikipedia_docs is empty. Running parsing.py...
-        parsing.py
+        python parsing.py
         if errorlevel 1 (
             echo       [ERROR] parsing.py failed!
             pause
@@ -140,10 +146,4 @@ echo    Stop server: Ctrl+C
 echo ============================================================
 echo.
 
-search_api.py
-
-echo.
-echo ============================================================
-echo    SERVER STOPPED
-echo ============================================================
-pause
+python search_api.py
