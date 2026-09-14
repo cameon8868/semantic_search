@@ -11,9 +11,15 @@ echo.
 REM --- 1. Create venv if missing -----------------------------
 if not exist "venv\Scripts\activate.bat" (
     echo [1/7] Creating venv...
-    py -m venv venv
+    where py >nul 2>&1
+    if %errorlevel%==0 (
+        py -m venv venv
+    ) else (
+        python -m venv venv
+    )
     if errorlevel 1 (
         echo       [ERROR] Failed to create venv. Is Python installed?
+        echo       Install from https://www.python.org/downloads/
         pause
         exit /b 1
     )
